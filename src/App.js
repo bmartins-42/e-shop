@@ -1,7 +1,8 @@
 import React from 'react';
 
 import { Switch, Route } from 'react-router-dom';
-import { auth } from './firebase/firebase.utils';
+import { auth } from './firebase/auth.utils';
+import { createUserProfileDocument } from './firebase/firestore.utils';
 
 import './App.css';
 
@@ -12,7 +13,6 @@ import LoginPage from './pages/login/login.component';
 
 class App extends React.Component {
   constructor(props) {
-
     super(props);
     this.state = {
       currentUser: null
@@ -21,9 +21,26 @@ class App extends React.Component {
   unsuscribeFromAuth = null;
 
   componentDidMount() {
-    this.unsuscribeFromAuth = auth.onAuthStateChanged(user => {
-      this.setState({ currentUser: user });
-    });
+    const setUserState = async userAuth => {
+      if (userAuth) {
+        try {
+          const userRef = await createUserProfileDocument(userAuth);
+          userRef.onSnapshot(snap => {
+            this.setState({
+              currentUser: {
+                id: snap.id,
+                ...snap.data()
+              }
+            });
+          });
+        } catch (err) {
+          console.error('Failed to update user state: ', err);
+        }
+      } else {
+        this.setState({ currentUser: userAuth });
+      }
+    };
+    this.unsuscribeFromAuth = auth.onAuthStateChanged(setUserState);
   }
 
   componentWillUnmount() {
